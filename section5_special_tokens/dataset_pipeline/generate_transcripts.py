@@ -1,7 +1,3 @@
-# src/generate_transcripts.py
-
-# === 1. IMPORTS ===
-
 import json
 from pyexpat.errors import messages
 import time
