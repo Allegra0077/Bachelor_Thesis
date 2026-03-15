@@ -34,9 +34,8 @@ OUT_FILE = BASE_DIR / "experiments_inv_none.jsonl"
 
 # BASE_PERSONA_ID = "bp_tech_starter"
 # if None, use ALL base personas found in hidden_persona_attributes.yaml
-BASE_PERSONA_IDS = None  
-#INVESTIGATOR_MODES = ["none", "guided", "unguided"]
-INVESTIGATOR_MODES = ["none"]  # for special token experiment, the guided and unguided modes are irrelevant
+BASE_PERSONA_IDS = None 
+INVESTIGATOR_MODES = ["none"] 
 LIMIT_STYLES = None  # 2 for debugging
 
 # currently 10 subtopics/persona, so 10 conversations/persona
