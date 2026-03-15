@@ -75,7 +75,6 @@ class TrainConfig:
     train_mode: str = "single_conversation"   # single_conversation | multi_conversation
     num_train_conversations: int = 1          # used in multi_conversation mode
     special_position_mode: str = "default"    # default | shared_position
-    max_eval_gen_tokens: int = 128
     seed: int = 0
 
 # =========================
@@ -341,53 +340,6 @@ def compute_loss(model, batch: Dict[str, torch.Tensor]) -> float:
     outputs = model(**batch)
     return float(outputs.loss.item())
 
-
-@torch.no_grad()
-def generate_user_turn(
-    model,
-    tokenizer,
-    example: Example,
-    special_tokens: List[str],
-    special_position_mode: str,
-    max_new_tokens: int,
-) -> str:
-    prefix_text = tokenizer.apply_chat_template(
-        example.context_messages,
-        tokenize=False,
-        add_generation_prompt=False,
-    )
-    prompt_text = prefix_text + "".join(special_tokens)
-
-    enc = tokenizer(prompt_text, return_tensors="pt")
-    input_ids = enc["input_ids"].to(model.device)
-    attention_mask = enc["attention_mask"].to(model.device)
-
-    gen_kwargs = {
-        "input_ids": input_ids,
-        "attention_mask": attention_mask,
-        "max_new_tokens": max_new_tokens,
-        "do_sample": False,
-        "pad_token_id": tokenizer.pad_token_id,
-        "eos_token_id": tokenizer.eos_token_id,
-    }
-
-    if special_position_mode == "shared_position":
-        gen_kwargs["position_ids"] = build_shared_position_ids_for_special_tokens(
-            tokenizer=tokenizer,
-            input_ids=input_ids,
-            special_tokens=special_tokens,
-        ).to(model.device)
-
-    out = model.generate(**gen_kwargs)
-    gen_ids = out[0][input_ids.shape[1]:]
-    text = tokenizer.decode(gen_ids, skip_special_tokens=False)
-    return text.strip()
-
-
-def exact_match(a: str, b: str) -> int:
-    return int(a.strip() == b.strip())
-
-
 # =========================
 # Main experiment logic
 # =========================
@@ -479,29 +431,6 @@ def run_training(
 
     torch.cuda.empty_cache()
 
-    reproduce_records = []
-    for ex in eval_examples:
-        predicted = generate_user_turn(
-            model=model,
-            tokenizer=tokenizer,
-            example=ex,
-            special_tokens=special_tokens,
-            special_position_mode=config.special_position_mode,
-            max_new_tokens=config.max_eval_gen_tokens,
-        )
-        gold = ex.target_message
-        reproduce_records.append(
-            {
-                "conversation_id": ex.conversation_id,
-                "target_turn_index": ex.target_turn_index,
-                "gold_user_turn": gold,
-                "generated_text": predicted,
-                "exact_match": exact_match(predicted, gold),
-            }
-        )
-        del predicted
-        torch.cuda.empty_cache()
-
     hook.remove()
 
     result = {
@@ -516,7 +445,6 @@ def run_training(
         "final_train_loss": history["train_loss"][-1],
         "final_eval_loss": history["eval_loss"][-1]["loss"],
         "history": history,
-        "reproduce_records": reproduce_records,
     }
 
     return result
@@ -626,8 +554,6 @@ def parse_args():
         default="default",
         choices=["default", "shared_position"],
     )
-
-    p.add_argument("--max_eval_gen_tokens", type=int, default=128)
     p.add_argument("--seed", type=int, default=0)
 
     p.add_argument("--run_token_count_sweep", action="store_true")
@@ -669,7 +595,6 @@ def main():
         train_mode=args.train_mode,
         num_train_conversations=args.num_train_conversations,
         special_position_mode=args.special_position_mode,
-        max_eval_gen_tokens=args.max_eval_gen_tokens,
         seed=args.seed,
     )
 
