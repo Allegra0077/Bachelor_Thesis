@@ -1,5 +1,3 @@
-# src/generate_experiments.py
-#
 # This script generates experiments.jsonl by:
 # 1) Reading hidden persona + style specs from yaml
 # 2) Using QWEN locally (via transformers) to generate:
