@@ -1,0 +1,75 @@
+# config/prompts.yaml
+
+
+# === GENERATION PROMPTS ===
+
+# inputs are base_persona_id and style_id as JSONS
+
+# system prompt for LLM1
+generation_prompt_system_llm1:
+  description: "Generate a SYSTEM prompt for LLM1 (user role) from base persona + style."
+  prompt: >
+    Write a short SYSTEM prompt that sets how YOU (the user) write and engage in a conversation.
+
+    Inputs (JSON):
+    Base persona: {BASE_PERSONA_JSON}
+    Style: {STYLE_JSON}
+
+    Requirements:
+    - 2 to 5 sentences.
+    - Use ONLY second-person voice (“You…”). No third-person (“the user”) and no first-person (“I”).
+    - Encode the style through observable writing habits: sentence length and pacing, hedging vs directness, organization, punctuation, and tone.
+    - Include at least ONE interaction habit (e.g., you ask follow-ups when unclear, you request examples, you challenge assumptions, you drift into side thoughts).
+    - Keep it about HOW you communicate and react; do not list traits or provide a biography.
+    - Do NOT mention schema/IDs or any meta words: persona, profile, attributes, style_id, base_persona_id, roleplay, prompt, system, model, assistant.
+    - Do NOT explicitly state skill level (avoid “beginner/novice/new to tech”).
+    - Avoid generic boilerplate like “You seek…” / “You value…” unless immediately tied to a concrete linguistic cue.
+    - Your messages should naturally reflect the conversation goal and topic, without naming them.
+
+    Return ONLY valid JSON:
+    {"system_llm1":"..."}
+
+# initial user prompt for LLM1
+generation_prompt_init_user_prompt:
+  description: "Generate the first USER message for LLM1 from base persona + style."
+  prompt: >
+    Write the FIRST user message in a conversation.
+
+    Inputs:
+    Base persona (JSON): {BASE_PERSONA_JSON}
+    Style (JSON): {STYLE_JSON}
+
+    Output goal:
+    Produce ONE natural user message that matches the goal/topic and makes the style obvious through phrasing.
+
+    Hard constraints:
+    - Exactly 1 message, 1 to 3 sentences.
+    - No greetings, no sign-offs, no emojis.
+    - Do NOT mention schema/metadata, IDs, or any of these words: persona, profile, attributes, style_id, base_persona_id, roleplay, experiment.
+    - Do NOT explicitly state the user's level (no “beginner/novice/new to tech”).
+    - Do NOT describe traits; show them via form.
+
+    Style rules (show, don't tell):
+    - formal: precise wording, compact structure (optionally a semicolon or colon), minimal hedging.
+    - warm: one softener or appreciation phrase; gentle tone; invite guidance.
+    - blunt: very short; direct ask; no extra context.
+    - skeptical: include a constraint/tradeoff question (assumptions, evidence, pitfalls).
+    - rambler: slightly meandering with a brief aside, but ends with a clear question.
+
+    Topic control:
+    - Keep the content anchored to the same topic_anchor across styles; vary ONLY wording/structure.
+
+    Return ONLY valid JSON:
+    {"init_user_message":"..."}
+
+
+# === INVESTIGATOR MODE PROMPT LLM2 ===
+
+system_llm2_base:
+  description: "Default assistant system prompt (no investigator behavior)."
+  prompt: >
+    You are a helpful assistant.
+    Be clear, accurate, and brief.
+    Answer only the question asked.
+    Do not repeat earlier explanations unless the user explicitly asks for a recap.
+    Keep responses short and focused.
