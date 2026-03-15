@@ -32,7 +32,7 @@ section5_special_tokens/        Section 5: Compressing Dialogue-Derived User Inf
 - Transformers (HuggingFace)
 - datasets (HuggingFace)
 - numpy
-- PyYAML (for Section 4 config files)
+- PyYAML (for Section 5 config files)
 
 ## Datasets
 
