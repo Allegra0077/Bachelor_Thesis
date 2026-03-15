@@ -64,7 +64,6 @@ class Example:
     context_messages: List[Dict[str, str]]
     target_message: str
 
-
 @dataclass
 class TrainConfig:
     model_name: str = "Qwen/Qwen2.5-0.5B"
@@ -79,7 +78,6 @@ class TrainConfig:
     max_eval_gen_tokens: int = 128
     seed: int = 0
 
-
 # =========================
 # Reproducibility
 # =========================
@@ -89,7 +87,6 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
 
 # =========================
 # IO
@@ -103,7 +100,6 @@ def load_jsonl(path: Path) -> List[Dict]:
             if line:
                 rows.append(json.loads(line))
     return rows
-
 
 def load_examples_from_jsonl(
     path: Path,
@@ -130,7 +126,6 @@ def load_examples_from_jsonl(
         )
 
     return examples
-
 
 # =========================
 # Grouping helpers
@@ -171,7 +166,6 @@ def select_train_examples(
         selected_examples.extend(grouped[conv_id])
 
     return selected_examples
-
 
 # =========================
 # Model / tokenizer setup
@@ -324,7 +318,6 @@ def build_shared_position_ids_for_special_tokens(
 
     return position_ids
 
-
 # =========================
 # Training / evaluation
 # =========================
@@ -333,13 +326,6 @@ def train_step(model, optimizer, batch: Dict[str, torch.Tensor]) -> float:
     model.train()
     outputs = model(**batch)
     loss = outputs.loss
-
-    # debug
-    #print("loss:", loss.item())
-    #print("logits has NaN:", outputs.logits.isnan().any().item())
-    #print("logits has Inf:", outputs.logits.isinf().any().item())
-    #print("input_ids shape:", batch["input_ids"].shape)
-    #print("labels min:", batch["labels"].min().item(), "max:", batch["labels"].max().item())
 
     optimizer.zero_grad()
     loss.backward()
@@ -438,9 +424,7 @@ def run_training(
     with torch.no_grad():
         embeddings = model.get_input_embeddings()
         mean_embedding = embeddings.weight[:-len(special_tokens)].float().mean(dim=0, keepdim=True).to(embeddings.weight.dtype)
-        # debug
-        #print("mean_embedding has NaN:", mean_embedding.isnan().any().item())
-        #print("mean_embedding has Inf:", mean_embedding.isinf().any().item())
+        
         for token_id in trainable_token_ids:
             embeddings.weight[token_id].copy_(mean_embedding.squeeze())
     
