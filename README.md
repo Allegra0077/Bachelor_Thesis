@@ -39,4 +39,4 @@ section5_special_tokens/        Section 5: Compressing Dialogue-Derived User Inf
 - **LMSYS-Chat-1M** (Section 4.2): Real user-assistant conversations. Available on HuggingFace (`lmsys/lmsys-chat-1m`).
 - **PersonaChat** (Section 4.3): Source of persona descriptions for hidden-persona condition. Available on HuggingFace (`AlekseyKorshuk/persona-chat`).
 - **UltraChat** (Section 4.3): Source of seed prompts for synthetic conversations. Available on HuggingFace (`HuggingFaceH4/ultrachat_200k`).
-- **Custom persona dataset** (Section 5): Manually defined personas with controlled attributes. See `section4_special_tokens/config/`.
+- **Custom persona dataset** (Section 5): Manually defined personas with controlled attributes. See `section5_special_tokens/config/`.
