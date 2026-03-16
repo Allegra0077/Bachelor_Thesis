@@ -10,6 +10,7 @@ Experiment flags (set at bottom of file):
 - INJECT_RANDOM_TOPIC: negative control (Section 4.2.3)
 - MIX_INPUTS: permuted user history (Section 4.2.3)
 - INVESTIGATOR_SETTING: investigator system prompt (Section 4.2.3)
+- TEMPLATE_TYPE: chat template ablation (None, "A", "B", or "C") (Section 4.2.3)
 - LOW_TOKENS: filter out conversations exceeding 4000 tokens
 """
 
@@ -40,17 +41,52 @@ def remove_sequence_list(data, seq=[151667, 271, 151668, 271]):
     return data
 
 
-def apply_template(conversation, tokenizer, remove_think_tokens=False):
-    """Apply the default chat template to a conversation."""
-    assert conversation[0]["role"] == "system"
+def apply_template(conversation, tokenizer, template_type=None, remove_think_tokens=False):
+    """Apply a chat template to a conversation.
 
-    inputs = tokenizer.apply_chat_template(
-        conversation,
-        add_generation_prompt=False,
-        tokenize=True,
-        return_dict=True,
-        enable_thinking=False,
-    )
+    Args:
+        conversation: list of message dicts, first must be system.
+        tokenizer: HuggingFace tokenizer.
+        template_type: None for default chat template, or "A", "B", "C":
+            - Template A: replace user/assistant control tokens with USER:/ASSISTANT:,
+                          keep system in native format.
+            - Template B: replace system control tokens with SYSTEM:,
+                          keep user/assistant in native format.
+            - Template C: combine A and B, replace all control tokens with plain-text labels.
+        remove_think_tokens: if True, strip <think>...</think> token sequences.
+    """
+    assert conversation[0]["role"] == "system"
+    assert template_type in [None, "A", "B", "C"], "template_type must be None, 'A', 'B', or 'C'"
+
+    if template_type is None:
+        # Default chat template
+        inputs = tokenizer.apply_chat_template(
+            conversation,
+            add_generation_prompt=False,
+            tokenize=True,
+            return_dict=True,
+            enable_thinking=False,
+        )
+    else:
+        # Build formatted text based on template type
+        if template_type == "A":
+            formatted_text = f"<|im_start|>system\n{conversation[0]['content']}<|im_end|>\n"
+        elif template_type in ("B", "C"):
+            formatted_text = f"SYSTEM: {conversation[0]['content']}\n"
+
+        for msg in conversation[1:]:
+            if msg["role"] == "user":
+                if template_type in ("A", "C"):
+                    formatted_text += f"USER: {msg['content']}\n"
+                elif template_type == "B":
+                    formatted_text += f"<|im_start|>user\n{msg['content']}<|im_end|>\n"
+            else:
+                if template_type in ("A", "C"):
+                    formatted_text += f"ASSISTANT: {msg['content']}\n"
+                elif template_type == "B":
+                    formatted_text += f"<|im_start|>assistant\n{msg['content']}<|im_end|>\n"
+
+        inputs = tokenizer(formatted_text)
 
     inputs["input_ids"] = (
         torch.tensor([remove_sequence_list(inputs["input_ids"])])
@@ -77,6 +113,7 @@ def main(max_turns):
     print(f"Setting MODEL_ONLY to {MODEL_ONLY}")
     print(f"Setting TEST_HUMAN_MESSAGE to {TEST_HUMAN_MESSAGE}")
     print(f"Setting TEST_MODEL_MESSAGE to {TEST_MODEL_MESSAGE}")
+    print(f"Setting TEMPLATE_TYPE to {TEMPLATE_TYPE}")
 
     # Load dataset
     lmsys = load_dataset("lmsys/lmsys-chat-1m", split="train")
@@ -121,7 +158,10 @@ def main(max_turns):
             else:
                 content = test_message["content"]
 
-            final_formatted_message = "<|im_start|>user\n" + content + "<|im_end|>\n"
+            if TEMPLATE_TYPE in ("A", "C"):
+                final_formatted_message = f"USER: {content}\n"
+            else:
+                final_formatted_message = "<|im_start|>user\n" + content + "<|im_end|>\n"
 
         elif TEST_MODEL_MESSAGE:
             final_model_input = conversation[-1]
@@ -139,7 +179,10 @@ def main(max_turns):
             else:
                 content = final_model_input["content"]
 
-            final_formatted_message = "<|im_start|>assistant\n" + content + "<|im_end|>\n"
+            if TEMPLATE_TYPE == "C":
+                final_formatted_message = f"ASSISTANT: {content}\n"
+            else:
+                final_formatted_message = "<|im_start|>assistant\n" + content + "<|im_end|>\n"
 
         conversation = conversation[:test_index]
 
@@ -178,7 +221,7 @@ def main(max_turns):
                 assert conversation_subset[0]["role"] == "user"
 
             conversation_subset = [system_instruction] + conversation_subset
-            input_ids = apply_template(conversation_subset, tokenizer)
+            input_ids = apply_template(conversation_subset, tokenizer, TEMPLATE_TYPE)
 
             complete_sequence = torch.cat((input_ids["input_ids"], output_ids["input_ids"]), dim=-1).to(device)
 
@@ -223,11 +266,12 @@ def main(max_turns):
     inject_message = "_RT" if INJECT_RANDOM_TOPIC else ""
     investigator_setting = "_INV" if INVESTIGATOR_SETTING else ""
     mix_inputs_setting = "_MIX" if MIX_INPUTS else ""
+    template_setting = f"_T{TEMPLATE_TYPE}" if TEMPLATE_TYPE else ""
     low_token_setting = "_LT" if LOW_TOKENS else ""
     output_path = (
         f"{output_dir}/exp_multi_{input_setting}_{output_setting}"
         f"{inject_message}{investigator_setting}{mix_inputs_setting}"
-        f"{low_token_setting}_{max_turns}_turn.json"
+        f"{template_setting}{low_token_setting}_{max_turns}_turn.json"
     )
     with open(output_path, "w") as f:
         json.dump(results, f, indent=4)
@@ -247,6 +291,7 @@ if __name__ == "__main__":
     MODEL_ONLY = False  # Context includes only assistant messages
     TEST_HUMAN_MESSAGE = True  # Score the last user message
     TEST_MODEL_MESSAGE = False  # Score the last assistant response
+    TEMPLATE_TYPE = None  # Chat template ablation: None, "A", "B", or "C"
     LOW_TOKENS = True  # Filter out conversations exceeding 4000 tokens
 
     for max_turns in [5, 10, 20]:
